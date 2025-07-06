@@ -1,6 +1,10 @@
 use crate::{
-    common::{HttpMethod, join_path},
-    routing::{HTTPHandler, Handler, Route, RouteError, RouteResolver},
+    http::HttpMethod,
+    routing::{
+        builder::RouteBuilder,
+        route::{Route, RouteError, RouteHandler, register_route},
+    },
+    utils::{join_path, split_path_query},
 };
 
 pub struct Router {
@@ -13,19 +17,20 @@ pub struct RouteGroup<'a> {
     pub routes: &'a mut Vec<Route>,
 }
 
-impl HTTPHandler for RouteGroup<'_> {
+impl RouteBuilder for Router {
     type Error = RouteError;
 
-    fn register_route(&mut self, path: &str, method: HttpMethod, handler: Handler) {
-        self.routes.push(Route {
-            path: join_path(&self.prefix, path),
+    fn register(&mut self, path: &str, method: HttpMethod, handler: RouteHandler) {
+        let (stripped_path, _) = split_path_query(&path);
+        register_route(
+            &mut self.routes,
+            &self.prefix,
+            stripped_path,
             method,
             handler,
-        });
+        );
     }
 }
-
-impl RouteResolver for Router {}
 
 impl Router {
     pub fn new(prefix: &str) -> Self {
@@ -48,44 +53,29 @@ impl Router {
     }
 }
 
-impl HTTPHandler for Router {
+impl RouteBuilder for RouteGroup<'_> {
     type Error = RouteError;
 
-    fn register_route(&mut self, path: &str, method: HttpMethod, handler: Handler) {
-        let path = join_path(&self.prefix, path);
-        if let Some(matching_route_idx) = self
-            .routes
-            .iter()
-            .position(|r| r.path == path && r.method == method)
-        {
-            log::warn!(
-                "Route {:?} {:?} already exists and will be overwritten",
-                method,
-                path
-            );
-            self.routes.insert(
-                matching_route_idx,
-                Route {
-                    path,
-                    method,
-                    handler,
-                },
-            );
-        } else {
-            self.routes.push(Route {
-                path,
-                method,
-                handler,
-            });
-        }
+    fn register(&mut self, path: &str, method: HttpMethod, handler: RouteHandler) {
+        let (stripped_path, _) = split_path_query(&path);
+        register_route(self.routes, &self.prefix, stripped_path, method, handler);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{common::HttpMethod, response::HttpResponse};
+    use crate::http::HttpResponse;
 
     use super::*;
+
+    #[test]
+    fn test_route_builder() {
+        let mut router = Router::new("/api");
+        router.register("/users", HttpMethod::GET, |_| Ok(HttpResponse::ok()));
+        assert_eq!(router.routes.len(), 1);
+        assert_eq!(router.routes[0].method, HttpMethod::GET);
+        assert_eq!(router.routes[0].path, "/api/users");
+    }
 
     #[test]
     fn test_group() {
@@ -102,7 +92,7 @@ mod tests {
     #[test]
     fn test_router_register_route() {
         let mut router = Router::new("/api");
-        router.register_route("/users", HttpMethod::GET, |_| Ok(HttpResponse::ok()));
+        router.register("/users", HttpMethod::GET, |_| Ok(HttpResponse::ok()));
 
         assert_eq!(router.routes.len(), 1);
         assert_eq!(router.routes[0].method, HttpMethod::GET);
