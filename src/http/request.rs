@@ -1,10 +1,11 @@
+use crate::http::{HttpMethod, Version};
+use crate::utils::split_path_query;
+use std::default::Default;
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader, ErrorKind, Read},
     str::FromStr,
 };
-
-use crate::http::{HttpMethod, Version};
 
 pub enum RequestError {
     ReadError,
@@ -22,8 +23,22 @@ pub struct Request {
     pub version: Version,
     pub headers: HashMap<String, String>,
     pub body: String,
-    pub params: HashMap<String, String>,
-    pub query: HashMap<String, String>,
+    pub path_params: HashMap<String, String>,
+    pub query_params: HashMap<String, String>,
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        Self {
+            method: HttpMethod::GET,
+            path: String::new(),
+            version: Version::HTTP1_1,
+            headers: HashMap::new(),
+            body: String::new(),
+            path_params: HashMap::new(),
+            query_params: HashMap::new(),
+        }
+    }
 }
 
 impl Request {
@@ -83,17 +98,33 @@ impl Request {
         // Parse body (read remaining content)
         let body = Self::parse_body(&mut buffer, &headers)?;
 
-        let (path, query) = path.split_once('?').unwrap_or((&path, ""));
+        let (path_seg, _) = split_path_query(&path);
 
         Ok(Request {
             method,
-            path: path.to_string(),
+            path: String::from(path_seg),
             version,
             headers,
             body,
-            params: HashMap::new(),
-            query: Self::parse_query(query),
+            path_params: HashMap::new(),
+            query_params: HashMap::new(),
         })
+    }
+
+    pub fn query(&self, key: &str) -> Option<&str> {
+        self.query_params.get(key).map(|v| v.as_str())
+    }
+
+    pub fn path(&self, key: &str) -> Option<&str> {
+        self.path_params.get(key).map(|v| v.as_str())
+    }
+
+    pub fn add_path_params(&mut self, path_params: HashMap<String, String>) {
+        self.path_params.extend(path_params);
+    }
+
+    pub fn add_query_params(&mut self, query_params: HashMap<String, String>) {
+        self.query_params.extend(query_params);
     }
 
     fn parse_request_line(line: &str) -> Result<(HttpMethod, String, Version), RequestError> {
@@ -154,15 +185,5 @@ impl Request {
         }
 
         String::from_utf8(body).map_err(|_| RequestError::ParseError)
-    }
-
-    fn parse_query(url: &str) -> HashMap<String, String> {
-        let mut query_map = HashMap::new();
-        for pair in url.split('&') {
-            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-            query_map.insert(key.to_string(), value.to_string());
-        }
-
-        query_map
     }
 }

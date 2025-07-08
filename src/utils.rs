@@ -73,7 +73,7 @@ pub fn get_status_text(code: u16) -> &'static str {
     }
 }
 
-pub fn to_title_case(s: &str) -> String {
+pub fn to_titlecase(s: &str) -> String {
     if s.is_empty() {
         String::new()
     } else {
@@ -87,7 +87,7 @@ pub fn sanitize_header_key(key: &str) -> String {
     let result = re.replace_all(key, "-").to_string();
     result
         .split("-")
-        .map(|s| to_title_case(s))
+        .map(|s| to_titlecase(s))
         .collect::<Vec<String>>()
         .join("-")
         .trim_end_matches("-")
@@ -99,6 +99,10 @@ pub fn join_path<'a>(prefix: &'a str, path: &'a str) -> String {
         .join(path.trim_start_matches('/'))
         .to_string_lossy()
         .to_string()
+}
+
+pub fn split_path_query(path: &str) -> (&str, &str) {
+    path.split_once('?').unwrap_or((path, ""))
 }
 
 #[cfg(test)]
@@ -127,5 +131,29 @@ mod tests {
         assert_eq!(join_path("/api", "v1/users"), "/api/v1/users"); // path without leading slash
         assert_eq!(join_path("/api", "v1/users/"), "/api/v1/users/"); // path with trailing slash
         assert_eq!(join_path("api", "v1/users/"), "api/v1/users/");
+        assert_eq!(join_path("/", "/v1/users"), "/v1/users");
+        assert_eq!(join_path("", "v1/users"), "v1/users");
+    }
+
+    #[test]
+    fn test_split_path_query() {
+        assert_eq!(split_path_query("/users"), ("/users", ""));
+        assert_eq!(split_path_query("/users?limit=10"), ("/users", "limit=10"));
+        assert_eq!(
+            split_path_query("/users?limit=10&offset=0"),
+            ("/users", "limit=10&offset=0")
+        );
+        assert_eq!(
+            split_path_query("/users?limit=10&offset=0&sort=name"),
+            ("/users", "limit=10&offset=0&sort=name")
+        );
+        assert_eq!(
+            split_path_query("/users?limit=10&offset=0&sort=name&order=asc"),
+            ("/users", "limit=10&offset=0&sort=name&order=asc")
+        );
+        assert_eq!(
+            split_path_query("/users/123?limit=10&offset=0&sort=name&order=asc&"),
+            ("/users/123", "limit=10&offset=0&sort=name&order=asc&")
+        );
     }
 }
