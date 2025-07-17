@@ -105,6 +105,17 @@ pub fn split_path_query(path: &str) -> (&str, &str) {
     path.split_once('?').unwrap_or((path, ""))
 }
 
+pub fn standardize(s: &str) -> String {
+    let re = Regex::new(r"[^a-zA-Z0-9-]+").unwrap();
+    let res = re.replace_all(s, "-").trim().to_lowercase();
+    res.split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<&str>>()
+        .join("-")
+        .trim_end_matches('-')
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

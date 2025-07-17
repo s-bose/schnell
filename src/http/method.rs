@@ -11,17 +11,17 @@ pub enum HttpMethod {
 }
 
 impl HttpMethod {
-    pub fn from_str(method: &str) -> Option<Self> {
+    pub fn from_str(method: &str) -> Result<Self, ()> {
         match method.to_uppercase().as_str() {
-            "GET" => Some(HttpMethod::GET),
-            "POST" => Some(HttpMethod::POST),
-            "PUT" => Some(HttpMethod::PUT),
-            "PATCH" => Some(HttpMethod::PATCH),
-            "DELETE" => Some(HttpMethod::DELETE),
-            "HEAD" => Some(HttpMethod::HEAD),
-            "OPTIONS" => Some(HttpMethod::OPTIONS),
-            "TRACE" => Some(HttpMethod::TRACE),
-            _ => None,
+            "GET" => Ok(HttpMethod::GET),
+            "POST" => Ok(HttpMethod::POST),
+            "PUT" => Ok(HttpMethod::PUT),
+            "PATCH" => Ok(HttpMethod::PATCH),
+            "DELETE" => Ok(HttpMethod::DELETE),
+            "HEAD" => Ok(HttpMethod::HEAD),
+            "OPTIONS" => Ok(HttpMethod::OPTIONS),
+            "TRACE" => Ok(HttpMethod::TRACE),
+            _ => Err(()),
         }
     }
 }

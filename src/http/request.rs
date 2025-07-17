@@ -1,4 +1,4 @@
-use crate::http::{HttpMethod, Version};
+use crate::http::{HttpMethod, Version, method};
 use crate::utils::split_path_query;
 use std::default::Default;
 use std::{
@@ -127,17 +127,22 @@ impl Request {
         self.query_params.extend(query_params);
     }
 
-    fn parse_request_line(line: &str) -> Result<(HttpMethod, String, Version), RequestError> {
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() != 3 {
+    fn parse_request_line(line: &str) -> Result<(HttpMethod, &str, Version), RequestError> {
+        let mut parts = line.split_whitespace();
+
+        let method_str = parts.next().ok_or(RequestError::ParseError)?;
+        let path = parts.next().ok_or(RequestError::ParseError)?;
+        let version_str = parts.next().ok_or(RequestError::ParseError)?;
+
+        if parts.next().is_some() {
             return Err(RequestError::ParseError);
         }
 
-        let method = HttpMethod::from_str(parts[0]).ok_or(RequestError::ParseError)?;
-
-        let version = Version::from_str(parts[2]).map_err(|_| RequestError::InvalidRequest)?;
-
-        Ok((method, parts[1].to_string(), version))
+        Ok((
+            HttpMethod::from_str(method_str).map_err(|_| RequestError::InvalidRequest)?,
+            path,
+            Version::from_str(version_str).map_err(|_| RequestError::InvalidRequest)?,
+        ))
     }
 
     fn parse_headers(lines: &[String]) -> HashMap<String, String> {
