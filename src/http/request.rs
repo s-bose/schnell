@@ -49,7 +49,6 @@ impl Request {
         loop {
             match buffer.read_line(&mut line) {
                 Ok(0) => {
-                    // End of stream reached
                     if lines.is_empty() {
                         return Err(RequestError::ConnectionClosed);
                     }
@@ -57,7 +56,7 @@ impl Request {
                 }
                 Ok(_) => {
                     if line.trim().is_empty() {
-                        break; // End of headers
+                        break;
                     }
                     lines.push(line.trim().to_string());
                     line.clear();
